@@ -94,6 +94,7 @@ footer{max-width:1180px;margin:0 auto;padding:0 20px 30px;color:var(--muted);fon
       <label>Guardadas <select id="emp"></select></label>
       <label>Nombre <input type="text" id="empName" style="width:260px"></label>
       <label>RUC <input type="text" id="empRuc" maxlength="13" style="width:150px"></label>
+      <label>Régimen <select id="empReg"><option value="general">General</option><option value="emprendedor">RIMPE Emprendedor</option><option value="popular">RIMPE Negocio Popular</option></select></label>
       <button class="btn primary" id="empSave">Guardar</button><button class="btn" id="empDel">Eliminar</button>
     </div>
     <div id="empMsg" class="muted" style="font-size:12.5px;margin-top:6px"></div>
@@ -191,18 +192,26 @@ const TABLA_DEF = [
 const LS = {get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } },
   set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch(e){ return false; } }};
 const getTabla = y => S.tablas[y] || TABLA_DEF;
+let SERVER = false, syncT = null;
+async function api(path, opt){ const r = await fetch(path, opt); if (!r.ok) throw new Error(r.status); return r.json(); }
+function syncUp(){
+  if (!SERVER || !S.ruc) return; clearTimeout(syncT);
+  syncT = setTimeout(() => api('api/emp/' + S.ruc, {method: 'PUT', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name: S.name, reg: S.reg, data: {manual: S.manual, tablas: S.tablas, files: S.files, nextId: S.nextId}})}).catch(() => alert('No se pudo guardar en el servidor.')), 800);
+}
 function saveEmp(){
   if (!S.ruc) return;
-  const emps = LS.get('renta_emps', {}); emps[S.ruc] = {name: S.name}; LS.set('renta_emps', emps);
+  const emps = LS.get('renta_emps', {}); emps[S.ruc] = {name: S.name, reg: S.reg}; LS.set('renta_emps', emps);
   if (!LS.set('renta_d_' + S.ruc, {manual: S.manual, tablas: S.tablas, files: S.files, nextId: S.nextId}))
     S.errors.push({t: 'warn', x: 'No se pudo guardar en el navegador (almacenamiento lleno).'});
+  syncUp();
 }
 function loadEmp(ruc){
   const d = LS.get('renta_d_' + ruc, {}), e = LS.get('renta_emps', {})[ruc];
-  Object.assign(S, {ruc, name: e ? e.name : '', manual: d.manual || [], tablas: d.tablas || {}, files: d.files || [], nextId: d.nextId || 1, errors: []});
+  Object.assign(S, {ruc, name: e ? e.name : '', reg: e?.reg || 'general', manual: d.manual || [], tablas: d.tablas || {}, files: d.files || [], nextId: d.nextId || 1, errors: []});
   LS.set('renta_last', ruc);
 }
-function resetEmp(){ Object.assign(S, {ruc: '', name: '', manual: [], tablas: {}, files: [], errors: []}); }
+function resetEmp(){ Object.assign(S, {ruc: '', name: '', reg: 'general', manual: [], tablas: {}, files: [], errors: []}); }
 function parseTablaTxt(txt){
   const rows = [];
   for (let line of txt.split(/\r?\n/)){
@@ -216,6 +225,21 @@ function parseTablaTxt(txt){
   return rows;
 }
 
+const RIMPE_POP = [[2500, 0], [5000, 5], [10000, 15], [15000, 35], [20000, 60]];
+const RIMPE_EMP = [[20000, 60, 0, 0], [50000, 60, 20000, 1], [75000, 360, 50000, 1.25], [100000, 672.5, 75000, 1.5], [200000, 1047.5, 100000, 1.75], [300000, 2797.52, 200000, 2]];
+function calcRimpe(ing, reg){
+  const z = {fila: null, inf: 0, exc: 0, pct: 0, sobreExc: 0, sobreBasica: 0, causado: 0};
+  if (!(ing > 0)) return z;
+  if (reg === 'popular'){
+    const t = RIMPE_POP.find(r => ing <= r[0]);
+    if (t) return {...z, fila: t, sobreBasica: t[1], causado: t[1]};
+    const e = calcRimpe(ing, 'emprendedor'); return {...e, aviso: e.aviso || 'Supera $20.000: se liquida con la tabla de Emprendedor y desde el próximo año pasas a esa categoría.'};
+  }
+  const t = RIMPE_EMP.find(r => ing <= r[0]);
+  if (!t) return {...z, aviso: 'Supera $300.000: sale del RIMPE y pasa al régimen general.'};
+  const exc = Math.max(0, ing - t[2]), se = r2(exc * t[3] / 100);
+  return {fila: t, inf: t[2], exc: r2(exc), pct: t[3], sobreExc: se, sobreBasica: t[1], causado: r2(t[1] + se)};
+}
 function calcular(base, tabla){
   const z = {fila: null, inf: 0, exc: 0, pct: 0, sobreExc: 0, sobreBasica: 0, causado: 0};
   if (!(base > 0)) return z;
@@ -369,7 +393,7 @@ function parseAnyXML(text){
 /* ================= declaración (IVA y renta) ================= */
 function declIVA(R){
   const tar = (S.tarifa || 15) / 100, all = R.cY.concat(R.vY).filter(r => r.d);
-  const per = S.per === 'auto' ? 'm' + (Math.max(0, ...all.map(r => r.d.m)) || 1) : S.per;
+  const lastM = Math.max(0, ...all.map(r => r.d.m)) || 1, per = S.per === 'auto' ? (S.reg === 'emprendedor' ? (lastM <= 6 ? 's1' : 's2') : 'm' + lastM) : S.per;
   const ok = r => r.d && (per === 'a' || (per[0] === 'm' && r.d.m === +per.slice(1)) || (per[0] === 's' && (+per.slice(1) === 1 ? r.d.m <= 6 : r.d.m > 6)));
   const V = R.vY.filter(ok), C = R.cY.filter(ok), T = R.rY.filter(ok);
   const sum = (a, f) => r2(a.reduce((x, r) => x + f(r), 0)), pos = a => a.filter(r => r.signo > 0);
@@ -390,7 +414,7 @@ function declIVA(R){
 const copyRows = l => l.map(([c, t, v]) => `<tr><td>${c}</td><td>${t}</td><td class="r">${fmt(v)}</td><td><button class="btn small" data-copy="${v.toFixed(c === '563' ? 4 : 2)}">Copiar</button></td></tr>`).join('');
 
 /* ================= estado ================= */
-const S = {files: [], errors: [], year: 'auto', tab: 'mes', q: '', R: null, nextId: 1, ruc: '', name: '', manual: [], tablas: {}, per: 'auto', tarifa: 15, rebaja: 0};
+const S = {files: [], errors: [], year: 'auto', tab: 'mes', q: '', R: null, nextId: 1, ruc: '', name: '', reg: 'general', manual: [], tablas: {}, per: 'auto', tarifa: 15, rebaja: 0};
 
 async function addFiles(list){
   for (const file of list){
@@ -451,6 +475,8 @@ function compute(){
   R.notas = r2(S.manual.filter(m => R.year === null || +m.fecha.slice(0, 4) === R.year).reduce((a, m) => a + m.valor, 0));
   R.base = r2(R.ingresos - R.gastos - R.notas);
   R.calc = calcular(R.base, getTabla(R.year ?? 0));
+  R.notasM = R.notas;
+  if (S.reg !== 'general'){ R.ingresos = r2(R.ingresos + R.notas); R.notas = 0; R.base = R.ingresos; R.calc = calcRimpe(R.ingresos, S.reg); }
   R.pagar = r2(R.calc.causado - R.retRenta);
   R.sinCont = R.cY.filter(r => r.signo === 0).length;
   return R;
@@ -461,8 +487,8 @@ function update(){ S.R = compute(); saveEmp(); renderEmp(); renderFiles(); rende
 function renderEmp(){
   const emps = LS.get('renta_emps', {});
   $('#emp').innerHTML = '<option value="">— Nueva empresa —</option>' + Object.entries(emps).map(([r, e]) => `<option value="${r}">${esc(e.name)} · ${r}</option>`).join('');
-  $('#emp').value = emps[S.ruc] ? S.ruc : ''; $('#empName').value = S.name; $('#empRuc').value = S.ruc;
-  $('#empMsg').textContent = S.ruc ? `Trabajando con ${S.name} (${S.ruc}). Todo se guarda automáticamente en este navegador.` : 'Escribe nombre y RUC (13 dígitos) y pulsa Guardar.';
+  $('#emp').value = emps[S.ruc] ? S.ruc : ''; $('#empName').value = S.name; $('#empRuc').value = S.ruc; $('#empReg').value = S.reg;
+  $('#empMsg').textContent = S.ruc ? `Trabajando con ${S.name} (${S.ruc}). ${SERVER ? 'Guardado en la base de datos del servidor.' : 'Guardado solo en este navegador.'}` : 'Escribe nombre y RUC (13 dígitos) y pulsa Guardar.';
 }
 
 function renderFiles(){
@@ -479,6 +505,7 @@ function renderFiles(){
   S.errors.forEach(e => m.push(`<div class="msg ${e.t}">${esc(e.x)}</div>`));
   if (R.dup.c || R.dup.v || R.dup.r) m.push(`<div class="msg info">Se omitieron duplicados (misma clave de acceso): ${R.dup.c} compras, ${R.dup.v} ventas, ${R.dup.r} retenciones.</div>`);
   if (R.fuera) m.push(`<div class="msg warn">${R.fuera} comprobantes son de otro año y no se cuentan (año fiscal: ${R.year ?? 'todos'}).</div>`);
+  if (S.reg === 'general' && !S.tablas[R.year ?? 0] && (R.year ?? 0) !== 2026) m.push(`<div class="msg warn">Estás usando la tabla 2026 para ${R.year ?? 'todos los años'}. Pega la tabla correcta en la pestaña “Tabla SRI” (cada año guarda la suya).</div>`);
   if (R.sinCont) m.push(`<div class="msg info">${R.sinCont} comprobantes de retención dentro del TXT de compras no se suman como gasto.</div>`);
   const gaps = mesesFaltantes(R.cY);
   if (gaps.length) m.push(`<div class="msg warn">Compras: no hay comprobantes de <b>${gaps.map(x => MESES[x - 1]).join(', ')}</b>. ¿Falta algún TXT?</div>`);
@@ -509,6 +536,13 @@ function renderCalc(){
     row('', 'Impuesto sobre la fracción básica', fmt(c.sobreBasica), 'fijo') +
     row('', 'Total impuesto causado', fmt(c.causado), 'CXP-SRI') +
     row('y', '(-) Retenciones I.R. (a favor)', fmt(R.retRenta)) +
+    row('g', R.pagar < 0 ? '(=) SALDO A FAVOR' : '(=) IMPUESTO A PAGAR', fmt(Math.abs(R.pagar)));
+  if (S.reg !== 'general') $('#calc').innerHTML =
+    row('', 'INGRESOS BRUTOS (ventas sin IVA + notas de venta)', fmt(R.ingresos)) + row('o', 'Los gastos NO se descuentan en RIMPE', '—') +
+    (c.aviso ? row('o', esc(c.aviso), '') : '') +
+    row('', S.reg === 'popular' && !c.aviso ? 'Cuota fija según tramo' : 'Impuesto sobre la fracción básica', fmt(c.sobreBasica)) +
+    (S.reg === 'emprendedor' || c.sobreExc ? row('', 'Excedente × ' + c.pct + '%', fmt(c.sobreExc)) : '') +
+    row('', 'Total impuesto RIMPE', fmt(c.causado)) + row('y', '(-) Retenciones I.R. (a favor)', fmt(R.retRenta)) +
     row('g', R.pagar < 0 ? '(=) SALDO A FAVOR' : '(=) IMPUESTO A PAGAR', fmt(Math.abs(R.pagar)));
   $('#kpis').innerHTML = `
     <div class="kpi big"><small>${R.pagar < 0 ? 'Saldo a favor' : 'Impuesto a pagar'}</small><b>$ ${fmt(Math.abs(R.pagar))}</b></div>
@@ -563,28 +597,31 @@ function renderTab(){
       : '<p class="muted">Sin retenciones cargadas. Sube los XML de comprobantes de retención.</p>';
   } else if (S.tab === 'notas'){
     const list = S.manual.map((m, i) => ({m, i})).filter(({m}) => R.year === null || +m.fecha.slice(0, 4) === R.year);
-    B.innerHTML = `<p class="muted">Notas de venta o recibos físicos que no están en el SRI. Se suman como gasto y quedan guardadas en esta empresa.</p>
+    B.innerHTML = `<p class="muted">Notas de venta o recibos físicos que no están en el SRI. Régimen general: se suman como gasto. RIMPE: se suman como ingreso. Quedan guardadas en esta empresa.</p>
       <div class="toolbar" style="margin:0 0 12px"><label>Fecha <input type="date" id="nF"></label><label>Número <input type="text" id="nN" style="width:150px"></label><label>Detalle <input type="text" id="nD" style="width:240px"></label><label>Valor sin IVA <input type="number" step="0.01" id="nV" style="width:110px"></label><button class="btn primary" id="nAdd">Agregar</button></div>` +
-      tbl('<th>Fecha</th><th>Número</th><th>Detalle</th><th class="r">Valor</th><th></th>', list.map(({m, i}) => `<tr><td>${m.fecha}</td><td>${esc(m.num)}</td><td>${esc(m.desc)}</td><td class="r">${fmt(m.valor)}</td><td><button class="btn small" data-nd="${i}">Quitar</button></td></tr>`).join(''), `<tr class="tot"><td colspan="3">TOTAL</td><td class="r">${fmt(R.notas)}</td><td></td></tr>`);
+      tbl('<th>Fecha</th><th>Número</th><th>Detalle</th><th class="r">Valor</th><th></th>', list.map(({m, i}) => `<tr><td>${m.fecha}</td><td>${esc(m.num)}</td><td>${esc(m.desc)}</td><td class="r">${fmt(m.valor)}</td><td><button class="btn small" data-nd="${i}">Quitar</button></td></tr>`).join(''), `<tr class="tot"><td colspan="3">TOTAL</td><td class="r">${fmt(R.notasM)}</td><td></td></tr>`);
     $('#nAdd').onclick = () => { const f = $('#nF').value, v = parseFloat($('#nV').value); if (!f || !(v > 0)) { alert('Pon fecha y un valor mayor a 0.'); return; } S.manual.push({fecha: f, num: $('#nN').value.trim(), desc: $('#nD').value.trim(), valor: r2(v)}); update(); };
     B.querySelectorAll('[data-nd]').forEach(b => b.onclick = () => { S.manual.splice(+b.dataset.nd, 1); update(); });
   } else if (S.tab === 'decl'){
     const I = declIVA(R), reb = S.rebaja || 0, c842 = Math.max(0, r2(R.calc.causado - reb)), neto = r2(c842 - R.retRenta), base = Math.max(0, R.base);
     const per = ['<option value="auto">Último mes con datos</option>'].concat(MESES.map((n, i) => `<option value="m${i + 1}">${n}</option>`), ['<option value="s1">Semestre 1</option>', '<option value="s2">Semestre 2</option>', '<option value="a">Año completo</option>']).join('');
-    const renta = [['741', 'Total ingresos', R.ingresos], ['751', 'Total gastos deducibles (compras + notas de venta)', r2(R.gastos + R.notas)], ['759', 'Renta imponible (741 − 751)', base], ['769', 'Subtotal base gravada', base], ['832', 'Base imponible gravada', base],
+    const renta = S.reg !== 'general' ? [['—', 'Ingresos brutos', R.ingresos], ['—', 'Impuesto RIMPE (tabla)', R.calc.causado], ['—', 'Retenciones en la fuente de renta', R.retRenta], ['—', R.pagar < 0 ? 'Saldo a favor' : 'Impuesto a pagar', Math.abs(R.pagar)]] : [['741', 'Total ingresos', R.ingresos], ['751', 'Total gastos deducibles (compras + notas de venta)', r2(R.gastos + R.notas)], ['759', 'Renta imponible (741 − 751)', base], ['769', 'Subtotal base gravada', base], ['832', 'Base imponible gravada', base],
       ['839', 'Total impuesto causado', R.calc.causado], ['828', 'Rebaja por gastos personales (la ingresas aquí)', reb], ['842', 'Impuesto causado después de la rebaja', c842],
       ['—', 'Retenciones en la fuente de renta (casillero según tu formulario en línea)', R.retRenta], ['—', neto < 0 ? 'Saldo a favor' : 'Impuesto a pagar', Math.abs(neto)]];
     B.innerHTML = `<h2>IVA · formulario 104 / 104A</h2>
       <div class="toolbar" style="margin:0 0 10px"><label>Período <select id="dPer">${per}</select></label><label>Tarifa IVA % <input id="dTar" type="number" step="0.01" value="${S.tarifa}" style="width:80px"></label></div>` +
-      tbl('<th>Casillero</th><th>Concepto</th><th class="r">Valor</th><th></th>', copyRows(I.filas)) +
+      (S.reg === 'popular' ? '<p class="muted">Negocio Popular: no hay declaración de IVA.</p>' : tbl('<th>Casillero</th><th>Concepto</th><th class="r">Valor</th><th></th>', copyRows(I.filas))) +
       `<p class="muted" style="font-size:12.5px">Compras: el TXT del SRI no separa base 0% y gravada, por eso 500/510 se estiman con IVA ÷ tarifa. No incluye saldos de meses anteriores (483/605). Las personas naturales sin contabilidad usan el 104A: confirma ahí los números de casillero.</p>
       <h2 style="margin-top:20px">Renta · formulario en línea de personas naturales ${R.year ?? ''}</h2>
       <div class="toolbar" style="margin:0 0 10px"><label>Rebaja por gastos personales (USD) <input id="dReb" type="number" step="0.01" value="${reb}" style="width:130px"></label></div>` +
       tbl('<th>Casillero</th><th>Concepto</th><th class="r">Valor</th><th></th>', copyRows(renta)) +
       `<p class="muted" style="font-size:12.5px">Los casilleros “—” dependen de las preguntas del formulario del SRI. La rebaja por gastos personales tiene topes según tus cargas familiares: verifícala antes de declarar.</p>`;
+    if (S.reg === 'popular') B.insertAdjacentHTML('afterbegin', '<div class="msg info">Negocio Popular: no declara IVA; solo la renta anual (cuota fija).</div>');
+    if (S.reg === 'emprendedor') B.insertAdjacentHTML('afterbegin', '<div class="msg info">RIMPE Emprendedor: se propone el semestre (ene–jun se declara en julio; jul–dic en enero), pero según el SRI puede ser mensual si vendes con IVA: elige el período y confirma en tu RUC.</div>');
     $('#dPer').value = S.per; $('#dPer').onchange = e => { S.per = e.target.value; renderTab(); };
     $('#dTar').onchange = e => { S.tarifa = parseFloat(e.target.value) || 15; renderTab(); };
     $('#dReb').onchange = e => { S.rebaja = parseFloat(e.target.value) || 0; renderTab(); };
+    if (S.reg !== 'general') $('#dReb').closest('.toolbar').style.display = 'none';
   } else if (S.tab === 'tabla'){
     const y = R.year ?? 0, T = getTabla(y), ed = () => { if (!S.tablas[y]) S.tablas[y] = JSON.parse(JSON.stringify(T)); return S.tablas[y]; };
     B.innerHTML = `<p class="muted">Tabla del año <b>${y || 'todos'}</b> (cada año guarda la suya en esta empresa). Pega aquí la tabla del SRI, copiada de la web o del PDF:</p>
@@ -651,7 +688,7 @@ function exportXlsx(){
   const nl = S.manual.filter(m => R.year === null || +m.fecha.slice(0, 4) === R.year);
   const nA = [['FECHA','NÚMERO','DETALLE','VALOR']].concat(nl.map(m => [m.fecha, m.num, m.desc, cell(m.valor)])), nLast = Math.max(nA.length, 2);
   while (nA.length < nLast) nA.push([]);
-  nA.push([]); nA.push(['','','TOTAL', cell(R.notas, `SUM(D2:D${nLast})`)]);
+  nA.push([]); nA.push(['','','TOTAL', cell(R.notasM, `SUM(D2:D${nLast})`)]);
   const wsN = XLSX.utils.aoa_to_sheet(nA); wsN['!cols'] = [12,16,40,12].map(w => ({wch: w}));
 
   /* IMP.RENTA */
@@ -674,6 +711,10 @@ function exportXlsx(){
   set('F11', 'Total impuesto causado'); set('H11', c.causado, 'H9+H10', '0.00'); set('I11', 'CXP-SRI');
   set('F13', '(-)Retenciones I.R (Saldo a Favor)'); set('H13', R.retRenta, `RETENCIONES!G${rTot}`, '0.00');
   set('F15', '(=)IMPUESTO A PAGAR (negativo = saldo a favor)'); set('H15', R.pagar, 'H11-H13', '0.00');
+  if (S.reg !== 'general'){
+    ws.F4.v = '(RIMPE: los gastos no se descuentan)';
+    [['G7', R.base], ['G8', c.inf], ['G9', c.exc], ['H9', c.sobreExc], ['H10', c.sobreBasica], ['H11', c.causado]].forEach(([a, v]) => { delete ws[a].f; ws[a].v = v; });
+  }
   ws['!ref'] = 'A1:I15'; ws['!cols'] = [18,16,24,30,4,40,14,14,12].map(w => ({wch: w}));
 
   /* RESUMEN */
@@ -704,26 +745,35 @@ document.addEventListener('click', e => {
 });
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button[data-t]'); if (b){ S.tab = b.dataset.t; renderTab(); } });
 $('#year').addEventListener('change', e => { S.year = e.target.value; update(); });
+$('#empReg').addEventListener('change', e => { S.reg = e.target.value; update(); });
 $('#emp').addEventListener('change', e => { if (e.target.value) loadEmp(e.target.value); else resetEmp(); update(); });
 $('#empSave').addEventListener('click', () => {
   const name = $('#empName').value.trim(), ruc = $('#empRuc').value.trim();
   if (!name || !/^\d{13}$/.test(ruc)) { alert('Escribe el nombre y un RUC de 13 dígitos.'); return; }
   if (LS.get('renta_emps', {})[ruc] && ruc !== S.ruc) loadEmp(ruc);
   else if (S.ruc && ruc !== S.ruc) resetEmp();
-  S.ruc = ruc; S.name = name; LS.set('renta_last', ruc); update();
+  S.ruc = ruc; S.name = name; S.reg = $('#empReg').value; LS.set('renta_last', ruc); update();
 });
 $('#empDel').addEventListener('click', () => {
   if (!S.ruc || !confirm('¿Eliminar ' + S.name + ' y todos sus datos guardados?')) return;
   const emps = LS.get('renta_emps', {}); delete emps[S.ruc]; LS.set('renta_emps', emps);
   try { localStorage.removeItem('renta_d_' + S.ruc); localStorage.removeItem('renta_last'); } catch(e){}
+  if (SERVER) api('api/emp/' + S.ruc, {method: 'DELETE'}).catch(() => {});
   resetEmp(); update();
 });
 document.addEventListener('click', e => { const b = e.target.closest('[data-copy]'); if (b){ navigator.clipboard?.writeText(b.dataset.copy); b.textContent = '✓'; setTimeout(() => b.textContent = 'Copiar', 1200); } });
 $('#btnClear').addEventListener('click', () => { S.files = []; S.errors = []; S.q = ''; update(); });
 $('#btnXlsx').addEventListener('click', exportXlsx);
 window.addEventListener('dragover', e => e.preventDefault()); window.addEventListener('drop', e => e.preventDefault());
-const last = LS.get('renta_last', ''); if (last) loadEmp(last);
-update();
+(async () => {
+  try {
+    const list = await api('api/emps'), emps = {};
+    list.forEach(e => { emps[e.ruc] = {name: e.name, reg: e.reg}; LS.set('renta_d_' + e.ruc, e.data); });
+    LS.set('renta_emps', emps); SERVER = true;
+  } catch(e){}
+  const last = LS.get('renta_last', ''); if (last && LS.get('renta_emps', {})[last]) loadEmp(last);
+  update();
+})();
 </script>
 </body>
 </html>
