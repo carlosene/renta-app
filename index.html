@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora de Impuesto a la Renta · Persona Natural</title>
+<style>
+:root{
+  --bg:#f5f6f8; --card:#fff; --ink:#1c2430; --muted:#667085; --line:#e4e7ec;
+  --brand:#0f766e; --brand-d:#0b5a54; --brand-l:#e6f4f2;
+  --warn:#b54708; --warn-bg:#fff4e5; --err:#b42318; --err-bg:#fef3f2; --ok:#067647; --ok-bg:#ecfdf3;
+  --yellow:#fff8c5; --green:#eef6c8; --orange:#ffe1d6;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#10151c; --card:#18202a; --ink:#e8edf3; --muted:#98a2b3; --line:#2b3644;
+  --brand:#2dd4bf; --brand-d:#5eead4; --brand-l:#0f2d2b; --warn:#fdb022; --warn-bg:#33260c; --err:#fda29b; --err-bg:#3a1512; --ok:#75e0a7; --ok-bg:#0f2a1c;
+  --yellow:#3b3512; --green:#2b3412; --orange:#3b2218;}
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--brand-d);color:#fff;padding:22px 20px}
+@media (prefers-color-scheme:dark){header{background:#0b2e2b}}
+header h1{margin:0;font-size:22px;font-weight:700}
+header p{margin:4px 0 0;opacity:.85;font-size:14px}
+main{max-width:1180px;margin:0 auto;padding:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:18px}
+h2{font-size:16px;margin:0 0 12px}
+.drop{border:2px dashed var(--brand);border-radius:12px;background:var(--brand-l);padding:28px 16px;text-align:center;cursor:pointer;transition:.15s}
+.drop.over{background:var(--brand);color:#fff}
+.drop b{font-size:17px}
+.drop small{display:block;color:var(--muted);margin-top:6px}
+.drop.over small{color:#fff}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;border-radius:8px;font:inherit;cursor:pointer}
+.btn:hover{border-color:var(--brand)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+@media (prefers-color-scheme:dark){.btn.primary{color:#06201d}}
+.btn.small{padding:3px 8px;font-size:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+@media (max-width:820px){.grid3{grid-template-columns:1fr}}
+.src{border:1px solid var(--line);border-radius:10px;padding:12px}
+.src h3{margin:0 0 2px;font-size:14px;display:flex;justify-content:space-between;gap:8px}
+.src .n{font-weight:700;color:var(--brand)}
+.src .sub{color:var(--muted);font-size:12px;margin-bottom:8px}
+.src ul{list-style:none;margin:0;padding:0;max-height:120px;overflow:auto}
+.src li{display:flex;justify-content:space-between;gap:6px;font-size:12px;padding:3px 0;border-top:1px solid var(--line)}
+.src li span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.src li button{border:0;background:none;color:var(--err);cursor:pointer;font-size:14px;line-height:1}
+.msg{padding:9px 12px;border-radius:8px;margin:8px 0 0;font-size:13.5px}
+.msg.warn{background:var(--warn-bg);color:var(--warn)}
+.msg.err{background:var(--err-bg);color:var(--err)}
+.msg.info{background:var(--ok-bg);color:var(--ok)}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:14px}
+.toolbar label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+input[type=number],input[type=text],select{font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+.cols{display:grid;grid-template-columns:1.3fr 1fr;gap:18px}
+@media (max-width:900px){.cols{grid-template-columns:1fr}}
+.calc{width:100%;border-collapse:collapse}
+.calc td{padding:7px 10px;border-bottom:1px solid var(--line)}
+.calc td:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.calc tr.y td{background:var(--yellow)} .calc tr.o td{background:var(--orange)} .calc tr.g td{background:var(--green);font-size:16px}
+.calc .tag{font-weight:400;color:var(--muted);font-size:12px}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.kpi small{color:var(--muted);display:block}
+.kpi b{font-size:18px;font-variant-numeric:tabular-nums}
+.kpi.big{grid-column:1/-1;background:var(--brand-l);border-color:var(--brand)}
+.kpi.big b{font-size:28px}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:12px}
+.tabs button{border:0;background:none;color:var(--muted);padding:9px 14px;cursor:pointer;font:inherit;border-bottom:2px solid transparent}
+.tabs button.on{color:var(--brand);border-color:var(--brand);font-weight:600}
+.tw{overflow:auto;max-height:520px;border:1px solid var(--line);border-radius:8px}
+table.t{border-collapse:collapse;width:100%;font-size:13px}
+table.t th{position:sticky;top:0;background:var(--brand-l);text-align:left;padding:7px 9px;white-space:nowrap}
+table.t td{padding:5px 9px;border-top:1px solid var(--line);white-space:nowrap}
+table.t td.r,table.t th.r{text-align:right;font-variant-numeric:tabular-nums}
+table.t tr.tot td{font-weight:700;background:var(--yellow)}
+table.t tr.miss td{background:var(--warn-bg);color:var(--warn)}
+table.t input{width:90px;text-align:right;padding:3px 6px}
+.muted{color:var(--muted)} .hide{display:none}
+footer{max-width:1180px;margin:0 auto;padding:0 20px 30px;color:var(--muted);font-size:12.5px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Calculadora de Impuesto a la Renta · Persona Natural</h1>
+  <p>Sube tus compras (TXT), ventas (Excel) y retenciones (XML) y el cálculo se hace solo. Todo se procesa en tu navegador: los archivos no se envían a ningún servidor.</p>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Empresa / contribuyente</h2>
+    <div class="toolbar" style="margin-top:0">
+      <label>Guardadas <select id="emp"></select></label>
+      <label>Nombre <input type="text" id="empName" style="width:260px"></label>
+      <label>RUC <input type="text" id="empRuc" maxlength="13" style="width:150px"></label>
+      <button class="btn primary" id="empSave">Guardar</button><button class="btn" id="empDel">Eliminar</button>
+    </div>
+    <div id="empMsg" class="muted" style="font-size:12.5px;margin-top:6px"></div>
+  </section>
+  <section class="card">
+    <div class="drop" id="drop" tabindex="0">
+      <b>Arrastra aquí tus archivos o haz clic para elegirlos</b>
+      <small>Compras <code>.txt</code> o factura <code>.xml</code> · Ventas <code>.xlsx/.xls/.csv</code> o factura <code>.xml</code> · Retenciones <code>.xml</code> — suelta todo junto, se clasifica solo (los RIDE/PDF no sirven: sube su XML)</small>
+      <input id="file" type="file" multiple accept=".txt,.xml,.xlsx,.xls,.csv,.pdf" class="hide">
+    </div>
+    <div class="grid3">
+      <div class="src"><h3>Compras <span class="n" id="nC">0</span></h3><div class="sub">TXT “Recibidos” del SRI</div><ul id="lC"></ul></div>
+      <div class="src"><h3>Ventas <span class="n" id="nV">0</span></h3><div class="sub">Reporte de ventas en Excel</div><ul id="lV"></ul></div>
+      <div class="src"><h3>Retenciones <span class="n" id="nR">0</span></h3><div class="sub">Comprobantes de retención XML</div><ul id="lR"></ul></div>
+    </div>
+    <div id="msgs"></div>
+    <div class="toolbar">
+      <label>Año fiscal <select id="year"></select></label>
+      <span style="flex:1"></span>
+      <button class="btn primary" id="btnXlsx">⬇ Descargar Excel</button>
+      <button class="btn" id="btnClear">Limpiar todo</button>
+    </div>
+  </section>
+
+  <section class="cols">
+    <div class="card">
+      <h2 id="calcTitle">Cálculo del impuesto</h2>
+      <table class="calc" id="calc"></table>
+    </div>
+    <div class="card">
+      <h2>Resumen</h2>
+      <div class="kpis" id="kpis"></div>
+      <p class="muted" style="font-size:12.5px;margin:12px 0 0" id="who"></p>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="tabs" id="tabs">
+      <button data-t="mes" class="on">Por mes</button>
+      <button data-t="compras">Compras</button>
+      <button data-t="ventas">Ventas</button>
+      <button data-t="ret">Retenciones</button>
+      <button data-t="notas">Notas de venta</button>
+      <button data-t="decl">Declaración</button>
+      <button data-t="tabla">Tabla SRI</button>
+    </div>
+    <div id="tabBody"></div>
+  </section>
+</main>
+<footer>
+  Herramienta de apoyo: no reemplaza la declaración oficial ni la asesoría de un contador. Verifica los valores en el formulario 102 / 102A del SRI antes de declarar.
+  La tabla por defecto es la del ejercicio 2026 (Resolución SRI NAC-DGERCGC25-00000043) y se puede editar en la pestaña “Tabla SRI”.
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+"use strict";
+/* ================= utilidades ================= */
+const $ = s => document.querySelector(s);
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const r2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
+const fmt = n => (n || 0).toLocaleString('es-EC', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const norm = s => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+function decodeBuf(buf){
+  try { return new TextDecoder('utf-8', {fatal: true}).decode(buf); }
+  catch(e){ return new TextDecoder('windows-1252').decode(buf); }   // los TXT del SRI vienen en ANSI
+}
+function num(v){
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  let s = String(v ?? '').replace(/[\s$]/g, '');
+  if (!s) return 0;
+  if (s.includes(',') && s.includes('.')) s = s.replace(/,/g, '');
+  else if (s.includes(',')) s = s.replace(',', '.');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+function parseDate(v){
+  if (v instanceof Date && !isNaN(v)) return mk(v.getFullYear(), v.getMonth() + 1, v.getDate());
+  const s = String(v ?? '').trim();
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (m) return mk(m[3].length === 2 ? 2000 + +m[3] : +m[3], +m[2], +m[1]);
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return mk(+m[1], +m[2], +m[3]);
+  return null;
+  function mk(y, mo, d){ return {y, m: mo, d, text: String(d).padStart(2,'0') + '/' + String(mo).padStart(2,'0') + '/' + y}; }
+}
+
+/* ================= tabla del SRI ================= */
+const TABLA_DEF = [
+  [0,12208,0,0],[12208,15549,0,5],[15549,20188,167,10],[20188,26700,631,12],[26700,35136,1412,15],
+  [35136,46575,2678,20],[46575,62005,4965,25],[62005,82679,8823,30],[82679,109956,15025,35],[109956,null,24572,37]
+];
+const LS = {get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch(e){ return false; } }};
+const getTabla = y => S.tablas[y] || TABLA_DEF;
+function saveEmp(){
+  if (!S.ruc) return;
+  const emps = LS.get('renta_emps', {}); emps[S.ruc] = {name: S.name}; LS.set('renta_emps', emps);
+  if (!LS.set('renta_d_' + S.ruc, {manual: S.manual, tablas: S.tablas, files: S.files, nextId: S.nextId}))
+    S.errors.push({t: 'warn', x: 'No se pudo guardar en el navegador (almacenamiento lleno).'});
+}
+function loadEmp(ruc){
+  const d = LS.get('renta_d_' + ruc, {}), e = LS.get('renta_emps', {})[ruc];
+  Object.assign(S, {ruc, name: e ? e.name : '', manual: d.manual || [], tablas: d.tablas || {}, files: d.files || [], nextId: d.nextId || 1, errors: []});
+  LS.set('renta_last', ruc);
+}
+function resetEmp(){ Object.assign(S, {ruc: '', name: '', manual: [], tablas: {}, files: [], errors: []}); }
+function parseTablaTxt(txt){
+  const rows = [];
+  for (let line of txt.split(/\r?\n/)){
+    const k = line.replace(/en adelante/ig, 'ADELANTE').replace(/[%$]/g, ' ').trim().split(/[\s;]+/).filter(Boolean);
+    if (k.length < 4) continue;
+    const v = k.slice(0, 4).map(x => x === '-' ? 0 : x === 'ADELANTE' ? null : /^\d{1,3}(\.\d{3})+(,\d+)?$/.test(x) ? parseFloat(x.replace(/\./g, '').replace(',', '.')) : parseFloat(x.replace(',', '.')));
+    if (v.some(x => x !== null && isNaN(x))) continue;
+    rows.push(v);
+  }
+  if (rows.length !== 10) throw new Error('Reconocí ' + rows.length + ' filas; deben ser 10 (la última “En adelante”).');
+  return rows;
+}
+
+function calcular(base, tabla){
+  const z = {fila: null, inf: 0, exc: 0, pct: 0, sobreExc: 0, sobreBasica: 0, causado: 0};
+  if (!(base > 0)) return z;
+  let f = tabla[tabla.length - 1];
+  for (const r of tabla){ if (r[1] === null || base <= r[1]) { f = r; break; } }
+  const exc = base - f[0], sobreExc = exc * f[3] / 100;
+  return {fila: f, inf: f[0], exc: r2(exc), pct: f[3], sobreExc: r2(sobreExc), sobreBasica: f[2], causado: r2(sobreExc + f[2])};
+}
+
+/* ================= lectores de archivos ================= */
+function parseCompras(text){
+  const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+  if (!lines.length) throw new Error('Archivo vacío');
+  const H = lines[0].split('\t').map(norm);
+  const ix = n => H.indexOf(n);
+  const need = ['ruc_emisor','clave_acceso','fecha_emision','valor_sin_impuestos','iva','importe_total'];
+  const falta = need.filter(n => ix(n) < 0);
+  if (falta.length) throw new Error('No encuentro las columnas: ' + falta.join(', '));
+  const g = (c, n) => (c[ix(n)] ?? '').trim();
+  const rows = [];
+  for (let i = 1; i < lines.length; i++){
+    const c = lines[i].split('\t');
+    const tipo = g(c, 'tipo_comprobante'), nt = norm(tipo);
+    const signo = nt.includes('retencion') ? 0 : nt.includes('credito') ? -1 : 1;
+    rows.push({
+      ruc: g(c,'ruc_emisor'), razon: g(c,'razon_social_emisor'), tipo, serie: g(c,'serie_comprobante'),
+      clave: g(c,'clave_acceso'), fAut: g(c,'fecha_autorizacion'), fEmi: g(c,'fecha_emision'),
+      receptor: g(c,'identificacion_receptor'), base: num(g(c,'valor_sin_impuestos')), iva: num(g(c,'iva')),
+      total: num(g(c,'importe_total')), modif: g(c,'numero_documento_modificado'),
+      signo, d: parseDate(g(c,'fecha_emision'))
+    });
+  }
+  return rows;
+}
+
+function ventasFromAoa(aoa){
+  let h = -1;
+  for (let i = 0; i < Math.min(aoa.length, 60); i++){
+    const r = (aoa[i] || []).map(norm);
+    if (r.some(x => x.startsWith('clave de acceso')) || (r.includes('comprobante') && r.some(x => x.startsWith('base')))) { h = i; break; }
+  }
+  if (h < 0) throw new Error('No encuentro la fila de encabezados (Clave de Acceso, Comprobante, Base…)');
+  const H = aoa[h].map(norm);
+  const find = f => H.findIndex(f);
+  const col = {
+    clave: find(x => x.startsWith('clave')), comp: find(x => x === 'comprobante' || x === 'tipo comprobante'),
+    fecha: find(x => x === 'fecha de emision' || x === 'fecha emision'),
+    est: find(x => x.startsWith('establecimiento')), pto: find(x => x.startsWith('punto')), sec: find(x => x.startsWith('secuencial')),
+    ident: find(x => x.startsWith('identificacion')), cli: find(x => x.startsWith('cliente') || x.startsWith('razon social')),
+    fAut: find(x => x.includes('fecha') && x.includes('autoriz')),
+    iva: find(x => x === 'iva'), total: find(x => x === 'total' || x === 'importe total' || x === 'valor total')
+  };
+  const baseCols = H.map((x, i) => x.startsWith('base') ? i : -1).filter(i => i >= 0);
+  if (col.fecha < 0) throw new Error('Falta la columna “Fecha de Emisión”');
+  if (!baseCols.length && col.total < 0) throw new Error('No encuentro columnas “Base …” ni “Total”');
+  const rows = [];
+  for (let i = h + 1; i < aoa.length; i++){
+    const c = aoa[i] || [];
+    if (!c.some(x => String(x ?? '').trim() !== '')) continue;
+    const d = parseDate(c[col.fecha]);
+    if (!d) continue;                                  // salta filas de totales / pie
+    const comp = col.comp >= 0 ? String(c[col.comp] ?? '').trim() : 'FACTURA', nc = norm(comp);
+    const signo = nc.includes('retencion') ? 0 : nc.includes('credito') ? -1 : 1;
+    let b0 = 0, bg = 0;
+    for (const j of baseCols){
+      const v = num(c[j]), hn = H[j];
+      if (hn.includes('0%') || hn.includes('no objeto') || hn.includes('exent')) b0 += v; else bg += v;
+    }
+    const iva = col.iva >= 0 ? num(c[col.iva]) : 0, total = col.total >= 0 ? num(c[col.total]) : 0;
+    if (!baseCols.length) bg = total - iva;
+    const clave = col.clave >= 0 ? String(c[col.clave] ?? '').trim() : '';
+    const est = col.est >= 0 ? c[col.est] : '', pto = col.pto >= 0 ? c[col.pto] : '', sec = col.sec >= 0 ? c[col.sec] : '';
+    const cli = col.cli >= 0 ? String(c[col.cli] ?? '').trim() : '';
+    rows.push({
+      clave, tipo: comp, d, est, pto, sec, ident: col.ident >= 0 ? String(c[col.ident] ?? '').trim() : '', cli,
+      fAut: col.fAut >= 0 ? (c[col.fAut] instanceof Date ? parseDate(c[col.fAut])?.text : String(c[col.fAut] ?? '')) : '',
+      b0, bg, iva, total, signo,
+      key: clave.length >= 40 ? clave : [d.text, est, pto, sec, cli, total].join('|')
+    });
+  }
+  if (!rows.length) throw new Error('No encontré filas de ventas con fecha');
+  return rows;
+}
+
+function parseRetXML(text){
+  const P = new DOMParser();
+  let doc = P.parseFromString(text, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length) throw new Error('XML inválido');
+  const estado = (doc.getElementsByTagName('estado')[0]?.textContent || '').trim();
+  const comp = doc.getElementsByTagName('comprobante')[0];
+  if (comp){
+    doc = P.parseFromString(comp.textContent.trim(), 'application/xml');
+    if (doc.getElementsByTagName('parsererror').length) throw new Error('XML interno inválido');
+  }
+  const cr = doc.getElementsByTagName('comprobanteRetencion')[0];
+  if (!cr) throw new Error('No es un comprobante de retención');
+  if (estado && estado.toUpperCase() !== 'AUTORIZADO') throw new Error('Comprobante no autorizado (' + estado + ')');
+  const t = (el, n) => (el.getElementsByTagName(n)[0]?.textContent || '').trim();
+  const clave = t(doc, 'claveAcceso') || t(doc, 'numeroAutorizacion');
+  const serie = t(doc, 'estab') + '-' + t(doc, 'ptoEmi') + '-' + t(doc, 'secuencial');
+  const fecha = parseDate(t(doc, 'fechaEmision'));
+  const emisor = t(doc, 'razonSocial'), rucEmisor = t(doc, 'ruc');
+  const sujeto = t(doc, 'razonSocialSujetoRetenido'), idSujeto = t(doc, 'identificacionSujetoRetenido');
+  const lineas = [];
+  const els = [...doc.getElementsByTagName('impuesto'), ...doc.getElementsByTagName('retencion')];
+  for (const el of els){
+    const cod = t(el, 'codigo'); if (!cod || !el.getElementsByTagName('valorRetenido').length) continue;
+    let p = el, doc_ = '';
+    while (p && !(doc_ = t(p, 'numDocSustento'))) p = p.parentElement;
+    lineas.push({
+      tipo: cod === '1' ? 'RENTA' : cod === '2' ? 'IVA' : cod === '6' ? 'ISD' : 'OTRO',
+      codRet: t(el, 'codigoRetencion'), base: num(t(el, 'baseImponible')),
+      pct: num(t(el, 'porcentajeRetener')), valor: num(t(el, 'valorRetenido')), sustento: doc_
+    });
+  }
+  if (!lineas.length) throw new Error('El comprobante no tiene líneas de retención');
+  return {clave, serie, d: fecha, emisor, rucEmisor, sujeto, idSujeto, lineas};
+}
+
+function unwrapXML(text){
+  const P = new DOMParser(); let doc = P.parseFromString(text, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length) throw new Error('XML inválido');
+  const estado = (doc.getElementsByTagName('estado')[0]?.textContent || '').trim();
+  const c = doc.getElementsByTagName('comprobante')[0];
+  if (c){ doc = P.parseFromString(c.textContent.trim(), 'application/xml'); if (doc.getElementsByTagName('parsererror').length) throw new Error('XML interno inválido'); }
+  return {doc, estado};
+}
+function parseAnyXML(text){
+  const {doc, estado} = unwrapXML(text), root = doc.documentElement.nodeName;
+  if (root === 'comprobanteRetencion') return {kind: 'ret', doc: parseRetXML(text)};
+  if (!['factura', 'notaCredito'].includes(root)) throw new Error('Tipo no soportado (' + root + '). Se aceptan factura, nota de crédito y retención.');
+  if (estado && estado.toUpperCase() !== 'AUTORIZADO') throw new Error('Comprobante no autorizado (' + estado + ')');
+  if (!S.ruc) throw new Error('Primero guarda el nombre y RUC de la empresa para clasificar compras y ventas.');
+  const t = (n, el = doc) => (el.getElementsByTagName(n)[0]?.textContent || '').trim();
+  const nc = root === 'notaCredito', signo = nc ? -1 : 1, d = parseDate(t('fechaEmision'));
+  const rucE = t('ruc'), idC = t('identificacionComprador'), clave = t('claveAcceso');
+  let b0 = 0, bg = 0, iva = 0;
+  for (const ti of doc.getElementsByTagName('totalImpuesto')){
+    if (t('codigo', ti) !== '2') continue;
+    const b = num(t('baseImponible', ti)), v = num(t('valor', ti)); iva += v; if (v === 0) b0 += b; else bg += b;
+  }
+  if (!b0 && !bg) bg = num(t('totalSinImpuestos'));
+  const total = num(t(nc ? 'valorModificacion' : 'importeTotal')), serie = t('estab') + '-' + t('ptoEmi') + '-' + t('secuencial');
+  if (rucE === S.ruc) return {kind: 'ventas', rows: [{clave, tipo: nc ? 'NOTA DE CREDITO' : 'FACTURA', d, est: t('estab'), pto: t('ptoEmi'), sec: t('secuencial'),
+    ident: idC, cli: t('razonSocialComprador'), fAut: '', b0, bg, iva, total, signo, key: clave}]};
+  if (idC.slice(0, 10) === S.ruc.slice(0, 10)) return {kind: 'compras', rows: [{ruc: rucE, razon: t('razonSocial'), tipo: nc ? 'Nota de Crédito' : 'Factura', serie, clave,
+    fAut: '', fEmi: d.text, receptor: idC, base: r2(b0 + bg), iva, total, modif: '', signo, d}]};
+  throw new Error('El comprobante no pertenece al RUC de esta empresa (emisor ' + rucE + ', comprador ' + idC + ')');
+}
+
+/* ================= declaración (IVA y renta) ================= */
+function declIVA(R){
+  const tar = (S.tarifa || 15) / 100, all = R.cY.concat(R.vY).filter(r => r.d);
+  const per = S.per === 'auto' ? 'm' + (Math.max(0, ...all.map(r => r.d.m)) || 1) : S.per;
+  const ok = r => r.d && (per === 'a' || (per[0] === 'm' && r.d.m === +per.slice(1)) || (per[0] === 's' && (+per.slice(1) === 1 ? r.d.m <= 6 : r.d.m > 6)));
+  const V = R.vY.filter(ok), C = R.cY.filter(ok), T = R.rY.filter(ok);
+  const sum = (a, f) => r2(a.reduce((x, r) => x + f(r), 0)), pos = a => a.filter(r => r.signo > 0);
+  const v411 = sum(V, r => r.signo * r.bg), v0 = sum(V, r => r.signo * r.b0), v419 = r2(v411 + v0), v421 = sum(V, r => r.signo * r.iva);
+  const c520 = sum(C, r => r.signo * r.iva), f563 = v419 ? Math.round(v411 / v419 * 10000) / 10000 : 0, c564 = r2(c520 * f563);
+  const dif = r2(v421 - c564), v601 = dif > 0 ? dif : 0, v602 = dif < 0 ? -dif : 0;
+  const v609 = r2(T.reduce((a, d) => a + d.lineas.filter(l => l.tipo === 'IVA').reduce((x, l) => x + l.valor, 0), 0));
+  return {per, filas: [
+    ['401', 'Ventas gravadas tarifa ≠ 0 · valor bruto', sum(pos(V), r => r.bg)], ['411', 'Ventas gravadas · valor neto (bruto − notas de crédito)', v411], ['421', 'IVA generado en ventas', v421],
+    ['—', 'Ventas tarifa 0% · neto (casillero de ventas 0% según tu formulario)', v0], ['419', 'Total ventas · valor neto', v419], ['429', 'Total impuesto generado (= 482)', v421],
+    ['500', 'Adquisiciones gravadas con crédito · bruto (estimado: IVA ÷ tarifa)', sum(pos(C), r => r.iva / tar)], ['510', 'Adquisiciones gravadas · neto (estimado)', sum(C, r => r.signo * r.iva / tar)], ['520', 'IVA en adquisiciones', c520],
+    ['509', 'Total adquisiciones y pagos · bruto', sum(pos(C), r => r.base)], ['519', 'Total adquisiciones y pagos · neto', sum(C, r => r.signo * r.base)],
+    ['563', 'Factor de proporcionalidad (411 ÷ 419)', f563], ['564', 'Crédito tributario aplicable (520 × 563)', c564],
+    ['601', 'Impuesto causado (si 499 − 564 > 0)', v601], ['602', 'Crédito tributario del período (si es < 0)', v602],
+    ['609', 'Retenciones de IVA que te hicieron en el período', v609], ['620', 'Subtotal a pagar (601 − 609, si > 0)', Math.max(0, r2(v601 - v609))],
+    ['—', 'Saldo a favor por retenciones (para el próximo mes)', Math.max(0, r2(v609 - v601))]]};
+}
+const copyRows = l => l.map(([c, t, v]) => `<tr><td>${c}</td><td>${t}</td><td class="r">${fmt(v)}</td><td><button class="btn small" data-copy="${v.toFixed(c === '563' ? 4 : 2)}">Copiar</button></td></tr>`).join('');
+
+/* ================= estado ================= */
+const S = {files: [], errors: [], year: 'auto', tab: 'mes', q: '', R: null, nextId: 1, ruc: '', name: '', manual: [], tablas: {}, per: 'auto', tarifa: 15, rebaja: 0};
+
+async function addFiles(list){
+  for (const file of list){
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (S.files.some(f => f.name === file.name && f.size === file.size)) { S.errors.push({t:'warn', x:`“${file.name}” ya estaba cargado, lo omití.`}); continue; }
+    try {
+      const buf = await file.arrayBuffer();
+      let entry;
+      if (ext === 'pdf'){
+        throw new Error('Los RIDE (PDF) no traen datos estructurados: sube el XML del mismo comprobante.');
+      } else if (ext === 'xml'){
+        entry = parseAnyXML(decodeBuf(buf));
+      } else if (ext === 'txt'){
+        const text = decodeBuf(buf), head = norm(text.split(/\r?\n/)[0]);
+        if (head.includes('ruc_emisor') && head.includes('clave_acceso')) entry = {kind: 'compras', rows: parseCompras(text)};
+        else { needXLSX(); const wb = XLSX.read(text, {type: 'string', cellDates: true}); entry = {kind: 'ventas', rows: ventasFromAoa(firstSheet(wb))}; }
+      } else if (['xlsx','xls','csv'].includes(ext)){
+        needXLSX();
+        const wb = XLSX.read(buf, {type: 'array', cellDates: true});
+        entry = {kind: 'ventas', rows: ventasFromAoa(firstSheet(wb))};
+      } else throw new Error('Tipo de archivo no soportado');
+      S.files.push({id: S.nextId++, name: file.name, size: file.size, ...entry});
+    } catch(e){
+      S.errors.push({t:'err', x:`${file.name}: ${e.message}`});
+    }
+  }
+  update();
+}
+function needXLSX(){ if (typeof XLSX === 'undefined') throw new Error('No se cargó la librería de Excel (se necesita conexión a internet la primera vez)'); }
+function firstSheet(wb){
+  for (const n of wb.SheetNames){
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[n], {header: 1, raw: true, defval: ''});
+    if (aoa.length) return aoa;
+  }
+  throw new Error('El Excel no tiene datos');
+}
+
+/* ================= cálculo ================= */
+function compute(){
+  const R = {compras: [], ventas: [], ret: [], dup: {c: 0, v: 0, r: 0}, sinContar: 0, years: new Set()};
+  const seenC = new Set(), seenV = new Set(), seenR = new Set();
+  for (const f of S.files){
+    if (f.kind === 'compras') for (const r of f.rows){ if (seenC.has(r.clave)) { R.dup.c++; continue; } seenC.add(r.clave); R.compras.push(r); }
+    if (f.kind === 'ventas')  for (const r of f.rows){ if (seenV.has(r.key))   { R.dup.v++; continue; } seenV.add(r.key);   R.ventas.push(r); }
+    if (f.kind === 'ret'){ const d = f.doc; if (seenR.has(d.clave)) { R.dup.r++; continue; } seenR.add(d.clave); R.ret.push(d); }
+  }
+  [...R.compras, ...R.ventas, ...R.ret].forEach(r => r.d && R.years.add(r.d.y));
+  const years = [...R.years].sort();
+  R.yearList = years;
+  R.year = S.year === 'auto' ? (years.length ? years[years.length - 1] : null) : S.year === 'todos' ? null : +S.year;
+  const inY = r => R.year === null || (r.d && r.d.y === R.year);
+  R.cY = R.compras.filter(inY); R.vY = R.ventas.filter(inY); R.rY = R.ret.filter(inY);
+  R.fuera = (R.compras.length - R.cY.length) + (R.ventas.length - R.vY.length) + (R.ret.length - R.rY.length);
+  R.gastos = r2(R.cY.reduce((a, r) => a + r.signo * r.base, 0));
+  R.ingresos = r2(R.vY.reduce((a, r) => a + r.signo * (r.b0 + r.bg), 0));
+  R.retRenta = r2(R.rY.reduce((a, d) => a + d.lineas.filter(l => l.tipo === 'RENTA').reduce((x, l) => x + l.valor, 0), 0));
+  R.retIva = r2(R.rY.reduce((a, d) => a + d.lineas.filter(l => l.tipo === 'IVA').reduce((x, l) => x + l.valor, 0), 0));
+  R.notas = r2(S.manual.filter(m => R.year === null || +m.fecha.slice(0, 4) === R.year).reduce((a, m) => a + m.valor, 0));
+  R.base = r2(R.ingresos - R.gastos - R.notas);
+  R.calc = calcular(R.base, getTabla(R.year ?? 0));
+  R.pagar = r2(R.calc.causado - R.retRenta);
+  R.sinCont = R.cY.filter(r => r.signo === 0).length;
+  return R;
+}
+
+/* ================= pintado ================= */
+function update(){ S.R = compute(); saveEmp(); renderEmp(); renderFiles(); renderCalc(); renderTab(); }
+function renderEmp(){
+  const emps = LS.get('renta_emps', {});
+  $('#emp').innerHTML = '<option value="">— Nueva empresa —</option>' + Object.entries(emps).map(([r, e]) => `<option value="${r}">${esc(e.name)} · ${r}</option>`).join('');
+  $('#emp').value = emps[S.ruc] ? S.ruc : ''; $('#empName').value = S.name; $('#empRuc').value = S.ruc;
+  $('#empMsg').textContent = S.ruc ? `Trabajando con ${S.name} (${S.ruc}). Todo se guarda automáticamente en este navegador.` : 'Escribe nombre y RUC (13 dígitos) y pulsa Guardar.';
+}
+
+function renderFiles(){
+  const R = S.R, by = k => S.files.filter(f => f.kind === k);
+  const li = k => by(k).map(f => `<li><span title="${esc(f.name)}">${esc(f.name)} · ${f.kind === 'ret' ? 1 : f.rows.length}</span><button title="Quitar" data-rm="${f.id}">✕</button></li>`).join('');
+  $('#lC').innerHTML = li('compras'); $('#lV').innerHTML = li('ventas'); $('#lR').innerHTML = li('ret');
+  $('#nC').textContent = R.compras.length; $('#nV').textContent = R.ventas.length; $('#nR').textContent = R.ret.length;
+
+  const ys = $('#year'), opts = ['<option value="auto">Automático' + (R.year ? ' (' + R.year + ')' : '') + '</option>']
+    .concat(R.yearList.map(y => `<option value="${y}">${y}</option>`), ['<option value="todos">Todos los años</option>']);
+  ys.innerHTML = opts.join(''); ys.value = S.year;
+
+  const m = []; if (!S.ruc) m.push('<div class="msg warn">Guarda el nombre y RUC de la empresa: así se guardan tus datos y se clasifican las facturas XML.</div>');
+  S.errors.forEach(e => m.push(`<div class="msg ${e.t}">${esc(e.x)}</div>`));
+  if (R.dup.c || R.dup.v || R.dup.r) m.push(`<div class="msg info">Se omitieron duplicados (misma clave de acceso): ${R.dup.c} compras, ${R.dup.v} ventas, ${R.dup.r} retenciones.</div>`);
+  if (R.fuera) m.push(`<div class="msg warn">${R.fuera} comprobantes son de otro año y no se cuentan (año fiscal: ${R.year ?? 'todos'}).</div>`);
+  if (R.sinCont) m.push(`<div class="msg info">${R.sinCont} comprobantes de retención dentro del TXT de compras no se suman como gasto.</div>`);
+  const gaps = mesesFaltantes(R.cY);
+  if (gaps.length) m.push(`<div class="msg warn">Compras: no hay comprobantes de <b>${gaps.map(x => MESES[x - 1]).join(', ')}</b>. ¿Falta algún TXT?</div>`);
+  if (R.compras.length && !R.ventas.length) m.push(`<div class="msg warn">Aún no cargas ventas: el ingreso es 0 y el impuesto sale en 0.</div>`);
+  $('#msgs').innerHTML = m.join('');
+}
+function mesesFaltantes(rows){
+  const ms = new Set(rows.filter(r => r.d).map(r => r.d.m));
+  if (!ms.size) return [];
+  const a = Math.min(...ms), b = Math.max(...ms), out = [];
+  for (let i = a; i <= b; i++) if (!ms.has(i)) out.push(i);
+  return out;
+}
+
+function renderCalc(){
+  const R = S.R, c = R.calc, hay = R.compras.length || R.ventas.length || R.ret.length;
+  $('#calcTitle').textContent = 'Cálculo del impuesto · ' + (R.year ?? 'todos los años') + (hay ? '' : ' (sin datos)');
+  const row = (cls, a, b, tag) => `<tr class="${cls}"><td>${a}${tag ? ' <span class="tag">' + tag + '</span>' : ''}</td><td>${b}</td></tr>`;
+  const bTxt = R.base <= 0 && hay ? ' (sin base gravada)' : '';
+  $('#calc').innerHTML =
+    row('', 'INGRESOS (ventas sin IVA)', fmt(R.ingresos)) +
+    row('', '(-) Gastos del negocio (compras sin IVA)', fmt(R.gastos)) +
+    row('o', '(-) Notas de venta válidas', fmt(R.notas)) +
+    row('y', '(=) Base imponible' + bTxt, fmt(R.base)) +
+    row('', '(-) Fracción básica (límite inferior)', fmt(c.inf)) +
+    row('', 'Fracción excedente', fmt(c.exc)) +
+    row('', 'Impuesto sobre fracción excedente', fmt(c.sobreExc), c.fila ? c.pct + '% variable' : '') +
+    row('', 'Impuesto sobre la fracción básica', fmt(c.sobreBasica), 'fijo') +
+    row('', 'Total impuesto causado', fmt(c.causado), 'CXP-SRI') +
+    row('y', '(-) Retenciones I.R. (a favor)', fmt(R.retRenta)) +
+    row('g', R.pagar < 0 ? '(=) SALDO A FAVOR' : '(=) IMPUESTO A PAGAR', fmt(Math.abs(R.pagar)));
+  $('#kpis').innerHTML = `
+    <div class="kpi big"><small>${R.pagar < 0 ? 'Saldo a favor' : 'Impuesto a pagar'}</small><b>$ ${fmt(Math.abs(R.pagar))}</b></div>
+    <div class="kpi"><small>Ingresos</small><b>$ ${fmt(R.ingresos)}</b></div>
+    <div class="kpi"><small>Gastos</small><b>$ ${fmt(R.gastos)}</b></div>
+    <div class="kpi"><small>Base imponible</small><b>$ ${fmt(R.base)}</b></div>
+    <div class="kpi"><small>Impuesto causado</small><b>$ ${fmt(c.causado)}</b></div>
+    <div class="kpi"><small>Retenciones renta</small><b>$ ${fmt(R.retRenta)}</b></div>
+    <div class="kpi"><small>Retenciones IVA (informativo)</small><b>$ ${fmt(R.retIva)}</b></div>`;
+  const nm = R.ret.find(d => d.sujeto);
+  const rec = R.cY[0]?.receptor;
+  $('#who').textContent = nm ? `Contribuyente detectado: ${nm.sujeto.replace(/\s*\.$/, '')} · ${nm.idSujeto}` : (rec ? `Identificación detectada en compras: ${rec}` : '');
+}
+
+function mesRows(){
+  const R = S.R, out = [];
+  const lastC = Math.max(0, ...R.cY.filter(r => r.d).map(r => r.d.m));
+  for (let m = 1; m <= 12; m++){
+    const c = R.cY.filter(r => r.d && r.d.m === m), v = R.vY.filter(r => r.d && r.d.m === m), t = R.rY.filter(d => d.d && d.d.m === m);
+    out.push({m, nc: c.length, gc: r2(c.reduce((a, r) => a + r.signo * r.base, 0)), nv: v.length, iv: r2(v.reduce((a, r) => a + r.signo * (r.b0 + r.bg), 0)),
+      nr: t.length, rr: r2(t.reduce((a, d) => a + d.lineas.filter(l => l.tipo === 'RENTA').reduce((x, l) => x + l.valor, 0), 0)), miss: !c.length && m <= lastC});
+  }
+  return out;
+}
+
+function renderTab(){
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === S.tab));
+  const R = S.R, B = $('#tabBody');
+  const tbl = (head, body, foot = '') => `<div class="tw"><table class="t"><thead><tr>${head}</tr></thead><tbody>${body}${foot}</tbody></table></div>`;
+  if (S.tab === 'mes'){
+    const rows = mesRows();
+    B.innerHTML = tbl('<th>Mes</th><th class="r"># Compras</th><th class="r">Gastos</th><th class="r"># Ventas</th><th class="r">Ingresos</th><th class="r"># Retenciones</th><th class="r">Ret. renta</th>',
+      rows.map(r => `<tr class="${r.miss ? 'miss' : ''}"><td>${MESES[r.m - 1]}${r.miss ? ' · sin compras' : ''}</td><td class="r">${r.nc}</td><td class="r">${fmt(r.gc)}</td><td class="r">${r.nv}</td><td class="r">${fmt(r.iv)}</td><td class="r">${r.nr}</td><td class="r">${fmt(r.rr)}</td></tr>`).join(''),
+      `<tr class="tot"><td>TOTAL</td><td class="r">${R.cY.length}</td><td class="r">${fmt(R.gastos)}</td><td class="r">${R.vY.length}</td><td class="r">${fmt(R.ingresos)}</td><td class="r">${R.rY.length}</td><td class="r">${fmt(R.retRenta)}</td></tr>`);
+  } else if (S.tab === 'compras'){
+    const q = norm(S.q), rows = R.cY.filter(r => !q || norm(r.razon + ' ' + r.serie + ' ' + r.ruc).includes(q));
+    B.innerHTML = `<p><input type="text" id="q" placeholder="Buscar proveedor, RUC o número…" value="${esc(S.q)}" style="width:300px"> <span class="muted">${rows.length} de ${R.cY.length}</span></p>` +
+      tbl('<th>Fecha</th><th>Emisor</th><th>Tipo</th><th>Serie</th><th class="r">Sin impuestos</th><th class="r">IVA</th><th class="r">Total</th>',
+        rows.map(r => `<tr><td>${r.fEmi}</td><td>${esc(r.razon)}</td><td>${esc(r.tipo)}</td><td>${esc(r.serie)}</td><td class="r">${fmt(r.signo * r.base)}</td><td class="r">${fmt(r.iva)}</td><td class="r">${fmt(r.total)}</td></tr>`).join(''),
+        `<tr class="tot"><td colspan="4">TOTAL (todas las filas del año, sin filtro de búsqueda)</td><td class="r">${fmt(R.gastos)}</td><td class="r">${fmt(R.cY.reduce((a, r) => a + r.signo * r.iva, 0))}</td><td class="r">${fmt(R.cY.reduce((a, r) => a + r.signo * r.total, 0))}</td></tr>`);
+    const q2 = $('#q'); if (q2) q2.addEventListener('input', e => { S.q = e.target.value; const pos = e.target.selectionStart; renderTab(); const n = $('#q'); n.focus(); n.setSelectionRange(pos, pos); });
+  } else if (S.tab === 'ventas'){
+    B.innerHTML = R.vY.length ? tbl('<th>Fecha</th><th>Comprobante</th><th>Número</th><th>Cliente</th><th class="r">Base 0%</th><th class="r">Base gravada</th><th class="r">IVA</th><th class="r">Total</th>',
+      R.vY.map(r => `<tr><td>${r.d.text}</td><td>${esc(r.tipo)}</td><td>${esc([r.est, r.pto, r.sec].filter(x => x !== '' && x != null).join('-'))}</td><td>${esc(r.cli)}</td><td class="r">${fmt(r.signo * r.b0)}</td><td class="r">${fmt(r.signo * r.bg)}</td><td class="r">${fmt(r.signo * r.iva)}</td><td class="r">${fmt(r.signo * r.total)}</td></tr>`).join(''),
+      `<tr class="tot"><td colspan="4">TOTAL</td><td class="r">${fmt(R.vY.reduce((a, r) => a + r.signo * r.b0, 0))}</td><td class="r">${fmt(R.vY.reduce((a, r) => a + r.signo * r.bg, 0))}</td><td class="r">${fmt(R.vY.reduce((a, r) => a + r.signo * r.iva, 0))}</td><td class="r">${fmt(R.vY.reduce((a, r) => a + r.signo * r.total, 0))}</td></tr>`)
+      : '<p class="muted">Sin ventas cargadas. Sube el Excel de ventas del SRI.</p>';
+  } else if (S.tab === 'ret'){
+    const lines = R.rY.flatMap(d => d.lineas.map(l => ({d, l})));
+    B.innerHTML = lines.length ? tbl('<th>Serie</th><th>Fecha</th><th>Agente de retención</th><th>Tipo</th><th>Código</th><th class="r">Base</th><th class="r">%</th><th class="r">Retenido</th>',
+      lines.map(({d, l}) => `<tr><td>${esc(d.serie)}</td><td>${d.d?.text ?? ''}</td><td>${esc(d.emisor)}</td><td>${l.tipo}</td><td>${esc(l.codRet)}</td><td class="r">${fmt(l.base)}</td><td class="r">${l.pct}%</td><td class="r">${fmt(l.valor)}</td></tr>`).join(''),
+      `<tr class="tot"><td colspan="7">TOTAL RENTA</td><td class="r">${fmt(R.retRenta)}</td></tr>`)
+      : '<p class="muted">Sin retenciones cargadas. Sube los XML de comprobantes de retención.</p>';
+  } else if (S.tab === 'notas'){
+    const list = S.manual.map((m, i) => ({m, i})).filter(({m}) => R.year === null || +m.fecha.slice(0, 4) === R.year);
+    B.innerHTML = `<p class="muted">Notas de venta o recibos físicos que no están en el SRI. Se suman como gasto y quedan guardadas en esta empresa.</p>
+      <div class="toolbar" style="margin:0 0 12px"><label>Fecha <input type="date" id="nF"></label><label>Número <input type="text" id="nN" style="width:150px"></label><label>Detalle <input type="text" id="nD" style="width:240px"></label><label>Valor sin IVA <input type="number" step="0.01" id="nV" style="width:110px"></label><button class="btn primary" id="nAdd">Agregar</button></div>` +
+      tbl('<th>Fecha</th><th>Número</th><th>Detalle</th><th class="r">Valor</th><th></th>', list.map(({m, i}) => `<tr><td>${m.fecha}</td><td>${esc(m.num)}</td><td>${esc(m.desc)}</td><td class="r">${fmt(m.valor)}</td><td><button class="btn small" data-nd="${i}">Quitar</button></td></tr>`).join(''), `<tr class="tot"><td colspan="3">TOTAL</td><td class="r">${fmt(R.notas)}</td><td></td></tr>`);
+    $('#nAdd').onclick = () => { const f = $('#nF').value, v = parseFloat($('#nV').value); if (!f || !(v > 0)) { alert('Pon fecha y un valor mayor a 0.'); return; } S.manual.push({fecha: f, num: $('#nN').value.trim(), desc: $('#nD').value.trim(), valor: r2(v)}); update(); };
+    B.querySelectorAll('[data-nd]').forEach(b => b.onclick = () => { S.manual.splice(+b.dataset.nd, 1); update(); });
+  } else if (S.tab === 'decl'){
+    const I = declIVA(R), reb = S.rebaja || 0, c842 = Math.max(0, r2(R.calc.causado - reb)), neto = r2(c842 - R.retRenta), base = Math.max(0, R.base);
+    const per = ['<option value="auto">Último mes con datos</option>'].concat(MESES.map((n, i) => `<option value="m${i + 1}">${n}</option>`), ['<option value="s1">Semestre 1</option>', '<option value="s2">Semestre 2</option>', '<option value="a">Año completo</option>']).join('');
+    const renta = [['741', 'Total ingresos', R.ingresos], ['751', 'Total gastos deducibles (compras + notas de venta)', r2(R.gastos + R.notas)], ['759', 'Renta imponible (741 − 751)', base], ['769', 'Subtotal base gravada', base], ['832', 'Base imponible gravada', base],
+      ['839', 'Total impuesto causado', R.calc.causado], ['828', 'Rebaja por gastos personales (la ingresas aquí)', reb], ['842', 'Impuesto causado después de la rebaja', c842],
+      ['—', 'Retenciones en la fuente de renta (casillero según tu formulario en línea)', R.retRenta], ['—', neto < 0 ? 'Saldo a favor' : 'Impuesto a pagar', Math.abs(neto)]];
+    B.innerHTML = `<h2>IVA · formulario 104 / 104A</h2>
+      <div class="toolbar" style="margin:0 0 10px"><label>Período <select id="dPer">${per}</select></label><label>Tarifa IVA % <input id="dTar" type="number" step="0.01" value="${S.tarifa}" style="width:80px"></label></div>` +
+      tbl('<th>Casillero</th><th>Concepto</th><th class="r">Valor</th><th></th>', copyRows(I.filas)) +
+      `<p class="muted" style="font-size:12.5px">Compras: el TXT del SRI no separa base 0% y gravada, por eso 500/510 se estiman con IVA ÷ tarifa. No incluye saldos de meses anteriores (483/605). Las personas naturales sin contabilidad usan el 104A: confirma ahí los números de casillero.</p>
+      <h2 style="margin-top:20px">Renta · formulario en línea de personas naturales ${R.year ?? ''}</h2>
+      <div class="toolbar" style="margin:0 0 10px"><label>Rebaja por gastos personales (USD) <input id="dReb" type="number" step="0.01" value="${reb}" style="width:130px"></label></div>` +
+      tbl('<th>Casillero</th><th>Concepto</th><th class="r">Valor</th><th></th>', copyRows(renta)) +
+      `<p class="muted" style="font-size:12.5px">Los casilleros “—” dependen de las preguntas del formulario del SRI. La rebaja por gastos personales tiene topes según tus cargas familiares: verifícala antes de declarar.</p>`;
+    $('#dPer').value = S.per; $('#dPer').onchange = e => { S.per = e.target.value; renderTab(); };
+    $('#dTar').onchange = e => { S.tarifa = parseFloat(e.target.value) || 15; renderTab(); };
+    $('#dReb').onchange = e => { S.rebaja = parseFloat(e.target.value) || 0; renderTab(); };
+  } else if (S.tab === 'tabla'){
+    const y = R.year ?? 0, T = getTabla(y), ed = () => { if (!S.tablas[y]) S.tablas[y] = JSON.parse(JSON.stringify(T)); return S.tablas[y]; };
+    B.innerHTML = `<p class="muted">Tabla del año <b>${y || 'todos'}</b> (cada año guarda la suya en esta empresa). Pega aquí la tabla del SRI, copiada de la web o del PDF:</p>
+      <textarea id="pasteT" rows="5" style="width:100%;font:inherit" placeholder="- 12.208 - 0%&#10;12.208 15.549 - 5%&#10;…&#10;109.956 En adelante 24.572 37%"></textarea>
+      <p><button class="btn small" id="applyT">Usar esta tabla</button> <button class="btn small" id="resetTabla">Volver a la tabla 2026</button> <span id="tMsg" class="muted"></span></p>` +
+      tbl('<th class="r">Fracción básica</th><th class="r">Exceso hasta</th><th class="r">Impuesto fracción básica</th><th class="r">% excedente</th>',
+        T.map((r, i) => `<tr><td class="r"><input data-i="${i}" data-j="0" type="number" step="any" value="${r[0]}"></td><td class="r">${r[1] === null ? 'En adelante' : `<input data-i="${i}" data-j="1" type="number" step="any" value="${r[1]}">`}</td><td class="r"><input data-i="${i}" data-j="2" type="number" step="any" value="${r[2]}"></td><td class="r"><input data-i="${i}" data-j="3" type="number" step="any" value="${r[3]}"></td></tr>`).join(''));
+    B.querySelectorAll('input[data-i]').forEach(inp => inp.addEventListener('input', () => { ed()[+inp.dataset.i][+inp.dataset.j] = parseFloat(inp.value) || 0; S.R = compute(); saveEmp(); renderCalc(); }));
+    $('#applyT').onclick = () => { try { S.tablas[y] = parseTablaTxt($('#pasteT').value); update(); } catch(e){ $('#tMsg').textContent = e.message; } };
+    $('#resetTabla').onclick = () => { delete S.tablas[y]; update(); };
+  }
+}
+
+/* ================= exportar a Excel ================= */
+function exportXlsx(){
+  try { needXLSX(); } catch(e){ alert(e.message); return; }
+  const R = S.R, yr = R.year ?? new Date().getFullYear(), hoy = new Date();
+  const cell = (v, f, z) => { const o = typeof v === 'number' ? {t: 'n', v} : {t: 's', v: String(v ?? '')}; if (f) o.f = f; if (z) o.z = z; return o; };
+  const wb = XLSX.utils.book_new();
+
+  /* COMPRAS */
+  const cH = ['RUC_EMISOR','RAZON_SOCIAL_EMISOR','TIPO_COMPROBANTE','SERIE_COMPROBANTE','CLAVE_ACCESO','FECHA_AUTORIZACION','FECHA_EMISION','IDENTIFICACION_RECEPTOR','VALOR_SIN_IMPUESTOS','IVA','IMPORTE_TOTAL','NUMERO_DOCUMENTO_MODIFICADO'];
+  const cRows = R.cY.filter(r => r.signo !== 0);
+  const cA = [cH].concat(cRows.map(r => [r.ruc, r.razon, r.tipo, r.serie, r.clave, r.fAut, r.fEmi, r.receptor, cell(r.signo * r.base), cell(r.signo * r.iva), cell(r.signo * r.total), r.modif]));
+  const cTot = cA.length + 1, cLast = cA.length;
+  const sumC = k => r2(cRows.reduce((a, r) => a + r.signo * r[k], 0));
+  cA.push(['','','','','','','','TOTAL', cell(sumC('base'), `SUM(I2:I${cLast})`), cell(sumC('iva'), `SUM(J2:J${cLast})`), cell(sumC('total'), `SUM(K2:K${cLast})`), '']);
+  const wsC = XLSX.utils.aoa_to_sheet(cA);
+  wsC['!cols'] = [15,60,18,20,52,20,14,22,20,10,15,28].map(w => ({wch: w}));
+
+  /* VENTAS */
+  const vRows = R.vY.filter(r => r.signo !== 0);
+  const vA = [['INFORME DE IMPUESTOS EN VENTAS'], ['REPORTE DE VENTAS'], ['RAZÓN SOCIAL: ' + S.name + ' · RUC ' + S.ruc], [], ['FACTURAS'],
+    ['Clave de Acceso','Comprobante','Fecha de Emisión','Establecimiento','Punto de Emisión','Secuencial','Identificación','Cliente/Proveedor','Fecha Autorización','Base 0%','Base IVA','IVA','Total']];
+  vRows.forEach(r => vA.push([r.clave, r.tipo, r.d.text, r.est, r.pto, r.sec, r.ident, r.cli, r.fAut, cell(r.signo * r.b0), cell(r.signo * r.bg), cell(r.signo * r.iva), cell(r.signo * r.total)]));
+  const vFirst = 7, vLast = Math.max(vA.length, 7), vTot = vLast + 1;
+  const sv = k => r2(vRows.reduce((a, r) => a + r.signo * r[k], 0));
+  const vTotRow = new Array(13).fill(''); vTotRow[8] = 'Total';
+  vTotRow[9] = cell(sv('b0'), `SUM(J${vFirst}:J${vLast})`); vTotRow[10] = cell(sv('bg'), `SUM(K${vFirst}:K${vLast})`);
+  vTotRow[11] = cell(sv('iva'), `SUM(L${vFirst}:L${vLast})`); vTotRow[12] = cell(sv('total'), `SUM(M${vFirst}:M${vLast})`);
+  while (vA.length < vLast) vA.push([]);
+  vA.push(vTotRow);
+  const wsV = XLSX.utils.aoa_to_sheet(vA);
+  wsV['!cols'] = [20,14,14,14,14,12,16,40,18,12,12,10,12].map(w => ({wch: w}));
+
+  /* RETENCIONES */
+  const rLines = R.rY.flatMap(d => d.lineas.filter(l => l.tipo === 'RENTA' || l.tipo === 'IVA').map(l => ({d, l})));
+  const rA = [['SERIE_COMPROBANTE','FECHA_EMISION','IDENTIFICACION_RECEPTOR','RAZON_SOCIAL_EMISOR','SUB.RENTA','%RET','TOTAL','SUB.IVA','%IVA','TOTAL']];
+  rLines.forEach(({d, l}, i) => {
+    const n = i + 2, isR = l.tipo === 'RENTA', p = r2(l.pct / 100 * 10000) / 10000;
+    rA.push([d.serie, d.d?.text ?? '', d.idSujeto, d.emisor,
+      cell(isR ? l.base : 0), cell(isR ? p : 0, null, '0.00%'), cell(isR ? l.valor : 0, `E${n}*F${n}`),
+      cell(isR ? 0 : l.base), cell(isR ? 0 : p, null, '0.00%'), cell(isR ? 0 : l.valor, `H${n}*I${n}`)]);
+  });
+  const rLast = rA.length, rTot = rLast + 2;
+  rA.push([]);
+  const sr = t => r2(rLines.filter(x => x.l.tipo === t).reduce((a, x) => a + x.l.valor, 0));
+  const sb = t => r2(rLines.filter(x => x.l.tipo === t).reduce((a, x) => a + x.l.base, 0));
+  rA.push(['','','','TOTAL', cell(sb('RENTA'), `SUM(E2:E${rLast + 1})`), '', cell(sr('RENTA'), `SUM(G2:G${rLast + 1})`), cell(sb('IVA'), `SUM(H2:H${rLast + 1})`), '', cell(sr('IVA'), `SUM(J2:J${rLast + 1})`)]);
+  const wsR = XLSX.utils.aoa_to_sheet(rA);
+  wsR['!cols'] = [20,12,22,60,14,8,14,12,8,12].map(w => ({wch: w}));
+
+  /* NOTAS DE VENTA */
+  const nl = S.manual.filter(m => R.year === null || +m.fecha.slice(0, 4) === R.year);
+  const nA = [['FECHA','NÚMERO','DETALLE','VALOR']].concat(nl.map(m => [m.fecha, m.num, m.desc, cell(m.valor)])), nLast = Math.max(nA.length, 2);
+  while (nA.length < nLast) nA.push([]);
+  nA.push([]); nA.push(['','','TOTAL', cell(R.notas, `SUM(D2:D${nLast})`)]);
+  const wsN = XLSX.utils.aoa_to_sheet(nA); wsN['!cols'] = [12,16,40,12].map(w => ({wch: w}));
+
+  /* IMP.RENTA */
+  const T = getTabla(R.year ?? 0), I = [];
+  const put = (a, v, f, z) => { I.push([a, cell(v, f, z)]); };
+  const ws = {}; const set = (a, v, f, z) => { ws[a] = (typeof v === 'object' && v !== null) ? v : cell(v, f, z); };
+  set('A1', 'TABLA DE IMPUESTO A LA RENTA PERSONAS NATURALES'); set('A2', `AÑO ${yr} - En dólares · ${S.name} · RUC ${S.ruc}`);
+  ['Fracción Básica (USD)','Exceso hasta (USD)','Impuesto Fracción Básica (USD)','Impuesto Fracción Excedente (%)'].forEach((h, i) => set('ABCD'[i] + '3', h));
+  T.forEach((r, i) => { const n = 4 + i; set('A' + n, r[0]); set('B' + n, r[1] === null ? 'En adelante' : r[1]); set('C' + n, r[2]); set('D' + n, r[3] / 100, null, '0.00%'); });
+  const L = 'LOOKUP(G7,$A$4:$A$13', c = R.calc;
+  set('F1', 'IMPUESTO A LA RENTA'); set('F2', `ENERO A ${MESES[(R.cY.length ? Math.max(...R.cY.filter(r => r.d).map(r => r.d.m)) : hoy.getMonth() + 1) - 1].toUpperCase()} ${yr}`);
+  set('F3', 'INGRESOS'); set('G3', R.ingresos, `VENTAS!J${vTot}+VENTAS!K${vTot}`, '0.00');
+  set('F4', '(-)Gastos del negocio'); set('G4', R.gastos, `COMPRAS!I${cTot}`, '0.00');
+  set('F5', '(-)NOTAS DE VENTA VALIDAS'); set('G5', R.notas, `SUM('NOTAS DE VENTA'!D2:D${nLast})`, '0.00');
+  set('F7', '(=)Base Imponible'); set('G7', R.base, 'G3-G4-G5', '0.00');
+  set('F8', '(-)Fraccion basica (Limite Inferior)'); set('G8', c.inf, `IF(G7<=0,0,${L})`, '0.00');
+  set('F9', 'Fraccion Exedente'); set('G9', c.exc, 'IF(G7<=0,0,G7-G8)', '0.00');
+  set('H9', c.sobreExc, `IF(G7<=0,0,G9*${L},$D$4:$D$13))`, '0.00'); set('I9', 'Variable');
+  set('F10', 'Impuesto sobre la fracción básica'); set('H10', c.sobreBasica, `IF(G7<=0,0,${L},$C$4:$C$13))`, '0.00'); set('I10', 'Fijo');
+  set('F11', 'Total impuesto causado'); set('H11', c.causado, 'H9+H10', '0.00'); set('I11', 'CXP-SRI');
+  set('F13', '(-)Retenciones I.R (Saldo a Favor)'); set('H13', R.retRenta, `RETENCIONES!G${rTot}`, '0.00');
+  set('F15', '(=)IMPUESTO A PAGAR (negativo = saldo a favor)'); set('H15', R.pagar, 'H11-H13', '0.00');
+  ws['!ref'] = 'A1:I15'; ws['!cols'] = [18,16,24,30,4,40,14,14,12].map(w => ({wch: w}));
+
+  /* RESUMEN */
+  const wsS = XLSX.utils.aoa_to_sheet([[S.name + ' · RUC ' + S.ruc], [`AL ${hoy.getDate()} DE ${MESES[hoy.getMonth()].toUpperCase()} DEL ${hoy.getFullYear()}`], ['COMPRAS','RETENCIONES','VENTAS'],
+    [cell(R.gastos, `COMPRAS!I${cTot}`, '0.00'), cell(R.retRenta, `RETENCIONES!G${rTot}`, '0.00'), cell(R.ingresos, `VENTAS!J${vTot}+VENTAS!K${vTot}`, '0.00')]]);
+  wsS['!cols'] = [18,18,18].map(w => ({wch: w}));
+
+  XLSX.utils.book_append_sheet(wb, ws, 'IMP.RENTA ' + yr);
+  XLSX.utils.book_append_sheet(wb, wsS, 'RESUMEN');
+  XLSX.utils.book_append_sheet(wb, wsC, 'COMPRAS');
+  XLSX.utils.book_append_sheet(wb, wsR, 'RETENCIONES');
+  XLSX.utils.book_append_sheet(wb, wsV, 'VENTAS');
+  XLSX.utils.book_append_sheet(wb, wsN, 'NOTAS DE VENTA');
+  wb.Workbook = {CalcPr: {fullCalcOnLoad: true}};
+  XLSX.writeFile(wb, `IMP_RENTA_${yr}_${S.ruc || 'empresa'}.xlsx`);
+}
+
+/* ================= eventos ================= */
+const drop = $('#drop'), fileIn = $('#file');
+drop.addEventListener('click', () => fileIn.click());
+drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') fileIn.click(); });
+fileIn.addEventListener('change', () => { addFiles([...fileIn.files]); fileIn.value = ''; });
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => addFiles([...e.dataTransfer.files]));
+document.addEventListener('click', e => {
+  const rm = e.target.closest('[data-rm]'); if (rm){ S.files = S.files.filter(f => f.id !== +rm.dataset.rm); update(); }
+});
+$('#tabs').addEventListener('click', e => { const b = e.target.closest('button[data-t]'); if (b){ S.tab = b.dataset.t; renderTab(); } });
+$('#year').addEventListener('change', e => { S.year = e.target.value; update(); });
+$('#emp').addEventListener('change', e => { if (e.target.value) loadEmp(e.target.value); else resetEmp(); update(); });
+$('#empSave').addEventListener('click', () => {
+  const name = $('#empName').value.trim(), ruc = $('#empRuc').value.trim();
+  if (!name || !/^\d{13}$/.test(ruc)) { alert('Escribe el nombre y un RUC de 13 dígitos.'); return; }
+  if (LS.get('renta_emps', {})[ruc] && ruc !== S.ruc) loadEmp(ruc);
+  else if (S.ruc && ruc !== S.ruc) resetEmp();
+  S.ruc = ruc; S.name = name; LS.set('renta_last', ruc); update();
+});
+$('#empDel').addEventListener('click', () => {
+  if (!S.ruc || !confirm('¿Eliminar ' + S.name + ' y todos sus datos guardados?')) return;
+  const emps = LS.get('renta_emps', {}); delete emps[S.ruc]; LS.set('renta_emps', emps);
+  try { localStorage.removeItem('renta_d_' + S.ruc); localStorage.removeItem('renta_last'); } catch(e){}
+  resetEmp(); update();
+});
+document.addEventListener('click', e => { const b = e.target.closest('[data-copy]'); if (b){ navigator.clipboard?.writeText(b.dataset.copy); b.textContent = '✓'; setTimeout(() => b.textContent = 'Copiar', 1200); } });
+$('#btnClear').addEventListener('click', () => { S.files = []; S.errors = []; S.q = ''; update(); });
+$('#btnXlsx').addEventListener('click', exportXlsx);
+window.addEventListener('dragover', e => e.preventDefault()); window.addEventListener('drop', e => e.preventDefault());
+const last = LS.get('renta_last', ''); if (last) loadEmp(last);
+update();
+</script>
+</body>
+</html>
