@@ -197,7 +197,8 @@ async function api(path, opt){ const r = await fetch(path, opt); if (!r.ok) thro
 function syncUp(){
   if (!SERVER || !S.ruc) return; clearTimeout(syncT);
   syncT = setTimeout(() => api('api/emp/' + S.ruc, {method: 'PUT', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({name: S.name, reg: S.reg, data: {manual: S.manual, tablas: S.tablas, files: S.files, nextId: S.nextId}})}).catch(() => alert('No se pudo guardar en el servidor.')), 800);
+    body: JSON.stringify({name: S.name, reg: S.reg, data: {manual: S.manual, tablas: S.tablas, files: S.files, nextId: S.nextId}})})
+    .then(() => { S.savedAt = new Date().toLocaleTimeString('es-EC'); renderEmp(); }).catch(() => alert('No se pudo guardar en el servidor. Revisa la conexión.')), 800);
 }
 function saveEmp(){
   if (!S.ruc) return;
@@ -487,8 +488,9 @@ function update(){ S.R = compute(); saveEmp(); renderEmp(); renderFiles(); rende
 function renderEmp(){
   const emps = LS.get('renta_emps', {});
   $('#emp').innerHTML = '<option value="">— Nueva empresa —</option>' + Object.entries(emps).map(([r, e]) => `<option value="${r}">${esc(e.name)} · ${r}</option>`).join('');
-  $('#emp').value = emps[S.ruc] ? S.ruc : ''; $('#empName').value = S.name; $('#empRuc').value = S.ruc; $('#empReg').value = S.reg;
-  $('#empMsg').textContent = S.ruc ? `Trabajando con ${S.name} (${S.ruc}). ${SERVER ? 'Guardado en la base de datos del servidor.' : 'Guardado solo en este navegador.'}` : 'Escribe nombre y RUC (13 dígitos) y pulsa Guardar.';
+  $('#emp').value = emps[S.ruc] ? S.ruc : ''; if (S.ruc || (!$('#empName').value && !$('#empRuc').value)){ $('#empName').value = S.name; $('#empRuc').value = S.ruc; }
+  $('#empReg').value = S.reg;
+  $('#empMsg').textContent = S.ruc ? `Trabajando con ${S.name} (${S.ruc}). ${SERVER ? 'Guardado en la base de datos del servidor' + (S.savedAt ? ' (último guardado ' + S.savedAt + ').' : '.') : 'Guardado solo en este navegador.'}` : 'Escribe nombre y RUC (13 dígitos) y pulsa Guardar.';
 }
 
 function renderFiles(){
@@ -598,9 +600,9 @@ function renderTab(){
   } else if (S.tab === 'notas'){
     const list = S.manual.map((m, i) => ({m, i})).filter(({m}) => R.year === null || +m.fecha.slice(0, 4) === R.year);
     B.innerHTML = `<p class="muted">Notas de venta o recibos físicos que no están en el SRI. Régimen general: se suman como gasto. RIMPE: se suman como ingreso. Quedan guardadas en esta empresa.</p>
-      <div class="toolbar" style="margin:0 0 12px"><label>Fecha <input type="date" id="nF"></label><label>Número <input type="text" id="nN" style="width:150px"></label><label>Detalle <input type="text" id="nD" style="width:240px"></label><label>Valor sin IVA <input type="number" step="0.01" id="nV" style="width:110px"></label><button class="btn primary" id="nAdd">Agregar</button></div>` +
+      <div class="toolbar" style="margin:0 0 12px"><label>Fecha <input type="date" id="nF"></label><label>Número <input type="text" id="nN" style="width:150px"></label><label>Detalle <input type="text" id="nD" style="width:240px"></label><label>Valor sin IVA <input type="number" step="0.01" id="nVal" style="width:110px"></label><button class="btn primary" id="nAdd">Agregar</button></div>` +
       tbl('<th>Fecha</th><th>Número</th><th>Detalle</th><th class="r">Valor</th><th></th>', list.map(({m, i}) => `<tr><td>${m.fecha}</td><td>${esc(m.num)}</td><td>${esc(m.desc)}</td><td class="r">${fmt(m.valor)}</td><td><button class="btn small" data-nd="${i}">Quitar</button></td></tr>`).join(''), `<tr class="tot"><td colspan="3">TOTAL</td><td class="r">${fmt(R.notasM)}</td><td></td></tr>`);
-    $('#nAdd').onclick = () => { const f = $('#nF').value, v = parseFloat($('#nV').value); if (!f || !(v > 0)) { alert('Pon fecha y un valor mayor a 0.'); return; } S.manual.push({fecha: f, num: $('#nN').value.trim(), desc: $('#nD').value.trim(), valor: r2(v)}); update(); };
+    $('#nAdd').onclick = () => { const f = $('#nF').value, v = parseFloat($('#nVal').value); if (!f || !(v > 0)) { alert('Pon fecha y un valor mayor a 0.'); return; } S.manual.push({fecha: f, num: $('#nN').value.trim(), desc: $('#nD').value.trim(), valor: r2(v)}); update(); };
     B.querySelectorAll('[data-nd]').forEach(b => b.onclick = () => { S.manual.splice(+b.dataset.nd, 1); update(); });
   } else if (S.tab === 'decl'){
     const I = declIVA(R), reb = S.rebaja || 0, c842 = Math.max(0, r2(R.calc.causado - reb)), neto = r2(c842 - R.retRenta), base = Math.max(0, R.base);
@@ -746,7 +748,7 @@ document.addEventListener('click', e => {
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button[data-t]'); if (b){ S.tab = b.dataset.t; renderTab(); } });
 $('#year').addEventListener('change', e => { S.year = e.target.value; update(); });
 $('#empReg').addEventListener('change', e => { S.reg = e.target.value; update(); });
-$('#emp').addEventListener('change', e => { if (e.target.value) loadEmp(e.target.value); else resetEmp(); update(); });
+$('#emp').addEventListener('change', e => { if (e.target.value) loadEmp(e.target.value); else { resetEmp(); $('#empName').value = ''; $('#empRuc').value = ''; } update(); });
 $('#empSave').addEventListener('click', () => {
   const name = $('#empName').value.trim(), ruc = $('#empRuc').value.trim();
   if (!name || !/^\d{13}$/.test(ruc)) { alert('Escribe el nombre y un RUC de 13 dígitos.'); return; }
@@ -759,7 +761,7 @@ $('#empDel').addEventListener('click', () => {
   const emps = LS.get('renta_emps', {}); delete emps[S.ruc]; LS.set('renta_emps', emps);
   try { localStorage.removeItem('renta_d_' + S.ruc); localStorage.removeItem('renta_last'); } catch(e){}
   if (SERVER) api('api/emp/' + S.ruc, {method: 'DELETE'}).catch(() => {});
-  resetEmp(); update();
+  resetEmp(); $('#empName').value = ''; $('#empRuc').value = ''; update();
 });
 document.addEventListener('click', e => { const b = e.target.closest('[data-copy]'); if (b){ navigator.clipboard?.writeText(b.dataset.copy); b.textContent = '✓'; setTimeout(() => b.textContent = 'Copiar', 1200); } });
 $('#btnClear').addEventListener('click', () => { S.files = []; S.errors = []; S.q = ''; update(); });
@@ -767,11 +769,15 @@ $('#btnXlsx').addEventListener('click', exportXlsx);
 window.addEventListener('dragover', e => e.preventDefault()); window.addEventListener('drop', e => e.preventDefault());
 (async () => {
   try {
-    const list = await api('api/emps'), emps = {};
+    const list = await api('api/emps'), emps = {}, local = LS.get('renta_emps', {});
+    for (const [ruc, e] of Object.entries(local)){          // pasa al servidor lo que ya tenías en este navegador
+      const d = LS.get('renta_d_' + ruc, null);
+      if (d && !list.some(x => x.ruc === ruc)) { await api('api/emp/' + ruc, {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name: e.name, reg: e.reg || 'general', data: d})}); list.push({ruc, name: e.name, reg: e.reg || 'general', data: d}); }
+    }
     list.forEach(e => { emps[e.ruc] = {name: e.name, reg: e.reg}; LS.set('renta_d_' + e.ruc, e.data); });
     LS.set('renta_emps', emps); SERVER = true;
   } catch(e){}
-  const last = LS.get('renta_last', ''); if (last && LS.get('renta_emps', {})[last]) loadEmp(last);
+  const known = LS.get('renta_emps', {}), last = known[LS.get('renta_last', '')] ? LS.get('renta_last', '') : Object.keys(known)[0]; if (last) loadEmp(last);
   update();
 })();
 </script>
