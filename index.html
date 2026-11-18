@@ -276,6 +276,11 @@ function parseCompras(text){
   return rows;
 }
 
+function ventaKey(r){   // misma factura = misma clave, venga de Excel o de XML
+  const nc = norm(r.tipo).includes('credito') ? 'NC' : 'F', e = Number(r.est), p = Number(r.pto), q = Number(r.sec);
+  if ([e, p, q].every(Number.isFinite) && r.est !== '' && r.sec !== '' && r.est != null) return `${nc}|${e}|${p}|${q}`;
+  return r.clave || [r.d?.text, r.cli, r.total].join('|');
+}
 function ventasFromAoa(aoa){
   let h = -1;
   for (let i = 0; i < Math.min(aoa.length, 60); i++){
@@ -418,6 +423,7 @@ const copyRows = l => l.map(([c, t, v]) => `<tr><td>${c}</td><td>${t}</td><td cl
 const S = {files: [], errors: [], year: 'auto', tab: 'mes', q: '', R: null, nextId: 1, ruc: '', name: '', reg: 'general', manual: [], tablas: {}, per: 'auto', tarifa: 15, rebaja: 0};
 
 async function addFiles(list){
+  S.errors = [];   // los avisos de la carga anterior ya no se muestran
   for (const file of list){
     const ext = file.name.split('.').pop().toLowerCase();
     if (S.files.some(f => f.name === file.name && f.size === file.size)) { S.errors.push({t:'warn', x:`“${file.name}” ya estaba cargado, lo omití.`}); continue; }
@@ -459,7 +465,7 @@ function compute(){
   const seenC = new Set(), seenV = new Set(), seenR = new Set();
   for (const f of S.files){
     if (f.kind === 'compras') for (const r of f.rows){ if (seenC.has(r.clave)) { R.dup.c++; continue; } seenC.add(r.clave); R.compras.push(r); }
-    if (f.kind === 'ventas')  for (const r of f.rows){ if (seenV.has(r.key))   { R.dup.v++; continue; } seenV.add(r.key);   R.ventas.push(r); }
+    if (f.kind === 'ventas')  for (const r of f.rows){ const kv = ventaKey(r); if (seenV.has(kv)) { R.dup.v++; continue; } seenV.add(kv);   R.ventas.push(r); }
     if (f.kind === 'ret'){ const d = f.doc; if (seenR.has(d.clave)) { R.dup.r++; continue; } seenR.add(d.clave); R.ret.push(d); }
   }
   [...R.compras, ...R.ventas, ...R.ret].forEach(r => r.d && R.years.add(r.d.y));
